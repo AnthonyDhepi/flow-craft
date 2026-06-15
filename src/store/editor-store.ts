@@ -1,7 +1,7 @@
 import { MarkerType, addEdge, applyEdgeChanges, applyNodeChanges, type Connection, type EdgeChange, type NodeChange, type OnSelectionChangeParams, type Viewport } from '@xyflow/react';
 import { create } from 'zustand';
 import { applyAutoLayout } from '../lib/layout';
-import { applySelection, createBlankDocument, createEdge, createNode, getNextNodePosition, sanitizeDocument } from '../lib/diagram';
+import { applySelection, createBlankDocument, createEdge, createNode, getEdgeStrokeForRisk, getNextNodePosition, sanitizeDocument } from '../lib/diagram';
 import { loadStoredDocument } from '../lib/persistence';
 import type { DiagramDocument, FlowEdge, FlowEdgeData, FlowNode, FlowNodeData, LayoutDirection, NodeKind } from '../types';
 
@@ -188,7 +188,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
           ? (() => {
               const risk = changes.risk ?? edge.data?.risk ?? 'low';
               const label = changes.label ?? edge.data?.label ?? '';
-              const stroke = risk === 'high' ? '#f97316' : risk === 'medium' ? '#fbbf24' : '#8ba3ff';
+              const stroke = getEdgeStrokeForRisk(risk);
               return {
                 ...edge,
                 animated: changes.animated ?? edge.animated,

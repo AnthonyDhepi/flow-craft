@@ -14,7 +14,7 @@ export function FlowNodeCard({ data, selected }: NodeProps<FlowNode>): JSX.Eleme
 
   return (
     <div
-      className={`flow-node ${selected ? 'selected' : ''}`}
+      className={`flow-node flow-node--${data.kind} ${selected ? 'selected' : ''}`}
       style={{ ['--node-accent' as string]: data.accent }}
     >
       <Handle className="flow-handle" id="top" type="target" position={Position.Top} />
@@ -22,27 +22,29 @@ export function FlowNodeCard({ data, selected }: NodeProps<FlowNode>): JSX.Eleme
       <Handle className="flow-handle" id="right" type="source" position={Position.Right} />
       <Handle className="flow-handle" id="bottom" type="source" position={Position.Bottom} />
 
-      <div className="flow-node__accent" />
-      <div className="flow-node__header">
-        <span className="flow-node__kind">
-          <span className="flow-node__icon">
-            <Icon size={14} />
+      <div className="flow-node__surface">
+        <div className="flow-node__accent" />
+        <div className="flow-node__header">
+          <span className="flow-node__kind">
+            <span className="flow-node__icon">
+              <Icon size={14} />
+            </span>
+            {data.kind}
           </span>
-          {data.kind}
-        </span>
-        <span className={`flow-node__status ${data.status}`}>{data.status}</span>
-      </div>
+          <span className={`flow-node__status ${data.status}`}>{data.status}</span>
+        </div>
 
-      <div className="flow-node__body">
-        <h3>{data.label}</h3>
-        <p>{data.description || 'Add context so the next reviewer understands the step.'}</p>
-      </div>
+        <div className="flow-node__body">
+          <h3>{data.label}</h3>
+          <p>{data.description || 'Add context so the next reviewer understands the step.'}</p>
+        </div>
 
-      <div className="flow-node__footer">
-        <span>
-          <User size={12} />
-          {data.owner || 'Unassigned'}
-        </span>
+        <div className="flow-node__footer">
+          <span>
+            <User size={12} />
+            {data.owner || 'Unassigned'}
+          </span>
+        </div>
       </div>
     </div>
   );

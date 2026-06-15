@@ -9,6 +9,33 @@ import type { EdgeRisk, FlowEdge, FlowNode, SavedDiagramRecord } from './types';
 
 const nodeTypes = { flowNode: FlowNodeCard };
 
+function usePrefersDarkMode(): boolean {
+  const [prefersDarkMode, setPrefersDarkMode] = useState(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+      return false;
+    }
+
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+      return;
+    }
+
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const updatePreference = (event: MediaQueryListEvent) => {
+      setPrefersDarkMode(event.matches);
+    };
+
+    setPrefersDarkMode(mediaQuery.matches);
+    mediaQuery.addEventListener('change', updatePreference);
+    return () => mediaQuery.removeEventListener('change', updatePreference);
+  }, []);
+
+  return prefersDarkMode;
+}
+
 function useAutosave(enabled: boolean, onSaved?: () => void): void {
   const document = useEditorStore((state) => state.document);
   const setSaveStatus = useEditorStore((state) => state.setSaveStatus);
@@ -98,73 +125,149 @@ function HomePage({
   onOpenChart: (chart: SavedDiagramRecord) => void;
 }): JSX.Element {
   const latestChart = charts[0];
+  const totalNodes = charts.reduce((sum, chart) => sum + chart.nodeCount, 0);
+  const totalEdges = charts.reduce((sum, chart) => sum + chart.edgeCount, 0);
+  const latestUpdatedAt = latestChart ? formatUpdatedAt(latestChart.updatedAt) : 'No saved edits yet';
+  const workspaceHighlights = [
+    {
+      icon: Save,
+      title: 'Local autosave',
+      description: 'Keep working without manual checkpoints while your latest version stays ready to reopen.',
+    },
+    {
+      icon: LayoutTemplate,
+      title: 'Structured editing',
+      description: 'Use layout tools, reusable node types, and inline properties to keep diagrams clean.',
+    },
+    {
+      icon: ImageDown,
+      title: 'Portable outputs',
+      description: 'Export JSON for reuse or PNG for sharing updates with stakeholders and delivery teams.',
+    },
+  ];
 
   return (
     <div className="home-shell">
       <header className="home-hero">
         <div className="home-hero__copy">
           <p className="eyebrow">Workflow Studio</p>
-          <h1>Start from a clean canvas or jump back into a saved chart.</h1>
+          <h1>Design, revisit, and hand off polished flowcharts from one professional workspace.</h1>
           <p>
-            Your recent diagrams stay available locally, so you can reopen them, refine the flow, and export updated handoff assets without hunting through files.
+            Build from scratch, resume active diagrams, and keep local process maps ready for fast iteration, stakeholder review, and export.
           </p>
-        </div>
-        <div className="home-hero__actions">
-          <button className="hero-button hero-button--primary" onClick={onCreateNew} type="button">
-            <Plus size={16} />
-            New blank chart
-          </button>
-          {latestChart ? (
-            <button className="hero-button" onClick={() => onOpenChart(latestChart)} type="button">
-              <PenSquare size={16} />
-              Continue latest chart
-            </button>
-          ) : null}
-        </div>
-      </header>
-
-      <section className="home-section">
-        <div className="home-section__header">
-          <div>
-            <h2>Recent charts</h2>
-            <p>Open any saved diagram and continue editing from where you left off.</p>
+          <div className="home-hero__meta">
+            <span className="status-pill">{charts.length} saved chart{charts.length === 1 ? '' : 's'}</span>
+            <span className="status-pill">{totalNodes} mapped steps</span>
+            <span className="status-pill">{totalEdges} connected paths</span>
           </div>
-          <span className="status-pill">{charts.length} saved</span>
+          <div className="home-hero__actions">
+            <button className="hero-button hero-button--primary" onClick={onCreateNew} type="button">
+              <Plus size={16} />
+              New blank chart
+            </button>
+            {latestChart ? (
+              <button className="hero-button" onClick={() => onOpenChart(latestChart)} type="button">
+                <PenSquare size={16} />
+                Continue latest chart
+              </button>
+            ) : null}
+          </div>
         </div>
-
-        {!charts.length ? (
-          <div className="home-empty">
-            <FolderOpen size={18} />
-            <div>
-              <strong>No saved charts yet</strong>
-              <p>Create a new chart to start building your local workspace library.</p>
+        <aside className="home-hero__summary">
+          <div className="home-summary-card">
+            <span className="home-summary-card__label">Latest activity</span>
+            <strong>{latestChart?.name ?? 'Create your first workflow'}</strong>
+            <p>{latestUpdatedAt}</p>
+          </div>
+          <div className="home-summary-grid">
+            <div className="home-summary-stat">
+              <span>Workspace</span>
+              <strong>{charts.length}</strong>
+              <p>Saved diagrams</p>
+            </div>
+            <div className="home-summary-stat">
+              <span>Coverage</span>
+              <strong>{totalNodes}</strong>
+              <p>Total flow steps</p>
+            </div>
+            <div className="home-summary-stat">
+              <span>Links</span>
+              <strong>{totalEdges}</strong>
+              <p>Connected paths</p>
             </div>
           </div>
-        ) : (
-          <div className="home-grid">
-            {charts.map((chart) => (
-              <article key={chart.id} className="chart-card">
-                <div className="chart-card__header">
-                  <div>
-                    <h3>{chart.name}</h3>
-                    <p>{formatUpdatedAt(chart.updatedAt)}</p>
-                  </div>
-                  <Clock3 size={16} />
-                </div>
-                <div className="chart-card__stats">
-                  <span>{chart.nodeCount} steps</span>
-                  <span>{chart.edgeCount} links</span>
-                  <span>v{DOCUMENT_VERSION}</span>
-                </div>
-                <button className="chart-card__action" onClick={() => onOpenChart(chart)} type="button">
-                  <PenSquare size={16} />
-                  Edit chart
-                </button>
-              </article>
-            ))}
+        </aside>
+      </header>
+
+      <div className="home-layout">
+        <section className="home-section">
+          <div className="home-section__header">
+            <div>
+              <h2>Recent charts</h2>
+              <p>Open any saved diagram and continue editing from where you left off.</p>
+            </div>
+            <span className="status-pill">{charts.length} saved</span>
           </div>
-        )}
-      </section>
+
+          {!charts.length ? (
+            <div className="home-empty">
+              <FolderOpen size={18} />
+              <div>
+                <strong>No saved charts yet</strong>
+                <p>Create a new chart to start building your local workspace library.</p>
+              </div>
+            </div>
+          ) : (
+            <div className="home-grid">
+              {charts.map((chart) => (
+                <article key={chart.id} className="chart-card">
+                  <div className="chart-card__header">
+                    <div>
+                      <h3>{chart.name}</h3>
+                      <p>{formatUpdatedAt(chart.updatedAt)}</p>
+                    </div>
+                    <Clock3 size={16} />
+                  </div>
+                  <div className="chart-card__stats">
+                    <span>{chart.nodeCount} steps</span>
+                    <span>{chart.edgeCount} links</span>
+                    <span>v{DOCUMENT_VERSION}</span>
+                  </div>
+                  <button className="chart-card__action" onClick={() => onOpenChart(chart)} type="button">
+                    <PenSquare size={16} />
+                    Edit chart
+                  </button>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <aside className="home-rail">
+          <section className="home-section home-section--stacked">
+            <div className="home-section__header">
+              <div>
+                <h2>Workspace standards</h2>
+                <p>Everything you need to keep flowcharts polished and ready to share.</p>
+              </div>
+              <Sparkles size={16} />
+            </div>
+            <div className="home-highlight-list">
+              {workspaceHighlights.map(({ icon: Icon, title, description }) => (
+                <article key={title} className="home-highlight-card">
+                  <span className="home-highlight-card__icon">
+                    <Icon size={16} />
+                  </span>
+                  <div>
+                    <h3>{title}</h3>
+                    <p>{description}</p>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </section>
+        </aside>
+      </div>
     </div>
   );
 }
@@ -288,7 +391,13 @@ function PropertiesPanel(): JSX.Element {
   );
 }
 
-function Canvas({ onReady }: { onReady: (instance: ReactFlowInstance<FlowNode, FlowEdge>) => void }): JSX.Element {
+function Canvas({
+  onReady,
+  prefersDarkMode,
+}: {
+  onReady: (instance: ReactFlowInstance<FlowNode, FlowEdge>) => void;
+  prefersDarkMode: boolean;
+}): JSX.Element {
   const document = useEditorStore((state) => state.document);
   const onNodesChange = useEditorStore((state) => state.onNodesChange);
   const onEdgesChange = useEditorStore((state) => state.onEdgesChange);
@@ -296,6 +405,8 @@ function Canvas({ onReady }: { onReady: (instance: ReactFlowInstance<FlowNode, F
   const setViewport = useEditorStore((state) => state.setViewport);
   const syncSelection = useEditorStore((state) => state.syncSelection);
   const snapshotCurrent = useEditorStore((state) => state.snapshotCurrent);
+  const canvasGridColor = prefersDarkMode ? '#2B2B2B' : '#E9ECEF';
+  const minimapMaskColor = prefersDarkMode ? 'rgba(18, 18, 18, 0.72)' : 'rgba(248, 249, 250, 0.82)';
 
   return (
     <ReactFlow
@@ -313,22 +424,23 @@ function Canvas({ onReady }: { onReady: (instance: ReactFlowInstance<FlowNode, F
       minZoom={0.3}
       maxZoom={2.5}
       nodeTypes={nodeTypes}
-      colorMode="dark"
+      colorMode={prefersDarkMode ? 'dark' : 'light'}
       defaultEdgeOptions={{ type: 'smoothstep', animated: false }}
     >
       <MiniMap
         pannable
         zoomable
-        nodeColor={(node) => String(node.data?.accent ?? '#8b5cf6')}
-        maskColor="rgba(17, 19, 21, 0.72)"
+        nodeColor={(node) => String(node.data?.accent ?? '#0D6EFD')}
+        maskColor={minimapMaskColor}
       />
       <Controls showInteractive={false} />
-      <Background color="#373b43" gap={24} size={1.1} />
+      <Background color={canvasGridColor} gap={24} size={1.1} />
     </ReactFlow>
   );
 }
 
 function FlowcraftApp(): JSX.Element {
+  const prefersDarkMode = usePrefersDarkMode();
   const [screen, setScreen] = useState<'home' | 'editor'>('home');
   const [savedCharts, setSavedCharts] = useState<SavedDiagramRecord[]>(() => listStoredDocuments());
   const [reactFlow, setReactFlow] = useState<ReactFlowInstance<FlowNode, FlowEdge> | null>(null);
@@ -516,7 +628,7 @@ function FlowcraftApp(): JSX.Element {
           </div>
           <div className="canvas-frame" ref={canvasRef}>
             <ReactFlowProvider>
-              <Canvas onReady={setReactFlow} />
+              <Canvas onReady={setReactFlow} prefersDarkMode={prefersDarkMode} />
             </ReactFlowProvider>
           </div>
         </main>

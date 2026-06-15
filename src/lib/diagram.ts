@@ -4,14 +4,17 @@ import type { DiagramDocument, DiagramMetrics, EdgeRisk, FlowEdge, FlowEdgeData,
 export const DOCUMENT_VERSION = 3;
 export const STORAGE_KEY = 'flowcraft.editor.document.v3';
 export const LEGACY_STORAGE_KEY = 'flowcraft.live.state.v2';
+export const DEFAULT_CONNECTOR_COLOR = '#495057';
+export const WARNING_CONNECTOR_COLOR = '#FFC107';
+export const DANGER_CONNECTOR_COLOR = '#DC3545';
 
 const DEFAULT_VIEWPORT = { x: 0, y: 0, zoom: 1 };
 
 export const NODE_LIBRARY: Array<{ kind: NodeKind; label: string; description: string; accent: string }> = [
-  { kind: 'start', label: 'Start / End', description: 'Entry points, exits, and handoff anchors.', accent: '#3b82f6' },
-  { kind: 'process', label: 'Process step', description: 'Operational work, approvals, or automations.', accent: '#8b5cf6' },
-  { kind: 'decision', label: 'Decision', description: 'Branching logic and policy checks.', accent: '#f59e0b' },
-  { kind: 'data', label: 'Data / Input', description: 'Inputs, records, or integrations.', accent: '#14b8a6' },
+  { kind: 'start', label: 'Start / End', description: 'Entry points, exits, and handoff anchors.', accent: '#198754' },
+  { kind: 'process', label: 'Process step', description: 'Operational work, approvals, or automations.', accent: '#0D6EFD' },
+  { kind: 'decision', label: 'Decision', description: 'Branching logic and policy checks.', accent: '#FFC107' },
+  { kind: 'data', label: 'Data / Input', description: 'Inputs, records, or integrations.', accent: '#495057' },
 ];
 
 type DefaultNodeData = {
@@ -24,10 +27,10 @@ type DefaultNodeData = {
 };
 
 const DEFAULT_NODE_BY_KIND: Record<NodeKind, DefaultNodeData> = {
-  start: { description: 'Define where the workflow starts or finishes.', owner: 'Ops', status: 'active', kind: 'start', accent: '#3b82f6', notes: '' },
-  process: { description: 'Capture the core action or approval.', owner: 'Team lead', status: 'planned', kind: 'process', accent: '#8b5cf6', notes: '' },
-  decision: { description: 'Document the rule that drives the branch.', owner: 'Policy', status: 'planned', kind: 'decision', accent: '#f59e0b', notes: '' },
-  data: { description: 'Track systems, sources, or records.', owner: 'Platform', status: 'planned', kind: 'data', accent: '#14b8a6', notes: '' },
+  start: { description: 'Define where the workflow starts or finishes.', owner: 'Ops', status: 'active', kind: 'start', accent: '#198754', notes: '' },
+  process: { description: 'Capture the core action or approval.', owner: 'Team lead', status: 'planned', kind: 'process', accent: '#0D6EFD', notes: '' },
+  decision: { description: 'Document the rule that drives the branch.', owner: 'Policy', status: 'planned', kind: 'decision', accent: '#FFC107', notes: '' },
+  data: { description: 'Track systems, sources, or records.', owner: 'Platform', status: 'planned', kind: 'data', accent: '#495057', notes: '' },
 };
 
 const DEFAULT_LABEL_BY_KIND: Record<NodeKind, string> = {
@@ -88,6 +91,17 @@ function createDefaultNodeData(kind: NodeKind, label = DEFAULT_LABEL_BY_KIND[kin
     accent: defaults.accent,
     notes: defaults.notes,
   };
+}
+
+export function getEdgeStrokeForRisk(risk: EdgeRisk): string {
+  switch (risk) {
+    case 'high':
+      return DANGER_CONNECTOR_COLOR;
+    case 'medium':
+      return WARNING_CONNECTOR_COLOR;
+    default:
+      return DEFAULT_CONNECTOR_COLOR;
+  }
 }
 
 function getNodeSize(kind: NodeKind): { width: number; height: number } {
@@ -164,11 +178,11 @@ function normalizeEdge(raw: unknown, index: number, nodeIds: Set<string>): FlowE
       type: MarkerType.ArrowClosed,
       width: 18,
       height: 18,
-      color: asString(record.style?.stroke, asString(record.color, '#6d8cff')),
+      color: asString(record.style?.stroke, asString(record.color, DEFAULT_CONNECTOR_COLOR)),
     },
     style: {
-      stroke: asString(record.style?.stroke, asString(record.color, '#6d8cff')),
-      strokeWidth: 2,
+      stroke: asString(record.style?.stroke, asString(record.color, DEFAULT_CONNECTOR_COLOR)),
+      strokeWidth: 1.5,
       strokeDasharray: record.style?.strokeDasharray ?? ((record as { dashed?: boolean }).dashed ? '8 6' : undefined),
     },
     data: {
@@ -221,11 +235,11 @@ export function createEdge(connection: Pick<Edge, 'source' | 'target' | 'sourceH
       type: MarkerType.ArrowClosed,
       width: 18,
       height: 18,
-      color: '#8ba3ff',
+      color: DEFAULT_CONNECTOR_COLOR,
     },
     style: {
-      stroke: '#8ba3ff',
-      strokeWidth: 2,
+      stroke: DEFAULT_CONNECTOR_COLOR,
+      strokeWidth: 1.5,
     },
     data: {
       label: 'Next',
@@ -289,7 +303,7 @@ export function createSampleDocument(): DiagramDocument {
     description: 'Check contract, security, and environment prerequisites.',
     owner: 'Implementation',
     kind: 'decision',
-    accent: '#f59e0b',
+    accent: '#FFC107',
   };
   document.nodes[3].data = {
     ...document.nodes[3].data,
@@ -303,7 +317,7 @@ export function createSampleDocument(): DiagramDocument {
     description: 'Collect security contacts, SSO details, and imports.',
     owner: 'Delivery ops',
     kind: 'data',
-    accent: '#14b8a6',
+    accent: '#495057',
   };
   document.edges = [
     createEdge({ source: document.nodes[0].id, target: document.nodes[1].id, sourceHandle: 'right', targetHandle: 'left' }),
@@ -315,7 +329,13 @@ export function createSampleDocument(): DiagramDocument {
   document.edges[2].data = { label: 'Yes', condition: 'Scope approved', risk: 'low' };
   document.edges[3].label = 'Missing data';
   document.edges[3].data = { label: 'Missing data', condition: 'Requirements incomplete', risk: 'medium' };
-  document.edges[3].style = { ...document.edges[3].style, stroke: '#f59e0b' };
+  document.edges[3].style = { ...document.edges[3].style, stroke: WARNING_CONNECTOR_COLOR };
+  document.edges[3].markerEnd = {
+    type: MarkerType.ArrowClosed,
+    width: 18,
+    height: 18,
+    color: WARNING_CONNECTOR_COLOR,
+  };
 
   return document;
 }

@@ -117,7 +117,7 @@ export async function readDocumentFromFile(file: File): Promise<DiagramDocument>
 export async function exportCanvasToPng(element: HTMLElement, document: DiagramDocument): Promise<void> {
   const dataUrl = await toPng(element, {
     cacheBust: true,
-    backgroundColor: '#081120',
+    backgroundColor: '#FFFFFF',
     pixelRatio: 2,
   });
 
