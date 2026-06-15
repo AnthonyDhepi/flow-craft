@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Background, Controls, MiniMap, ReactFlow, ReactFlowProvider, type ReactFlowInstance, type Viewport } from '@xyflow/react';
-import { ArrowLeft, Braces, Clock3, Download, FolderOpen, House, ImageDown, LayoutTemplate, PenSquare, Plus, Redo2, RotateCcw, Save, Sparkles, Trash2, Undo2, Upload } from 'lucide-react';
+import { ArrowLeft, Braces, Clock3, Download, FolderOpen, House, ImageDown, LayoutTemplate, Moon, PenSquare, Plus, Redo2, RotateCcw, Save, Sparkles, Sun, Trash2, Undo2, Upload } from 'lucide-react';
 import { FlowNodeCard } from './components/flow-node';
 import { DOCUMENT_VERSION, NODE_LIBRARY, getDiagramMetrics } from './lib/diagram';
 import { downloadDocument, exportCanvasToPng, listStoredDocuments, readDocumentFromFile, saveStoredDocument } from './lib/persistence';
@@ -8,32 +8,36 @@ import { useEditorStore } from './store/editor-store';
 import type { EdgeRisk, FlowEdge, FlowNode, SavedDiagramRecord } from './types';
 
 const nodeTypes = { flowNode: FlowNodeCard };
+const THEME_STORAGE_KEY = 'flowcraft.theme';
 
-function usePrefersDarkMode(): boolean {
-  const [prefersDarkMode, setPrefersDarkMode] = useState(() => {
-    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
-      return false;
+type ThemeMode = 'dark' | 'light';
+
+function useThemeMode(): { themeMode: ThemeMode; toggleThemeMode: () => void } {
+  const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
+    if (typeof window === 'undefined') {
+      return 'dark';
     }
 
-    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const storedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
+    return storedTheme === 'light' ? 'light' : 'dark';
   });
 
   useEffect(() => {
-    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+    if (typeof document === 'undefined') {
       return;
     }
 
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const updatePreference = (event: MediaQueryListEvent) => {
-      setPrefersDarkMode(event.matches);
-    };
+    document.documentElement.dataset.theme = themeMode;
+    document.documentElement.style.colorScheme = themeMode;
+    window.localStorage.setItem(THEME_STORAGE_KEY, themeMode);
+  }, [themeMode]);
 
-    setPrefersDarkMode(mediaQuery.matches);
-    mediaQuery.addEventListener('change', updatePreference);
-    return () => mediaQuery.removeEventListener('change', updatePreference);
-  }, []);
-
-  return prefersDarkMode;
+  return {
+    themeMode,
+    toggleThemeMode: () => {
+      setThemeMode((currentTheme) => (currentTheme === 'dark' ? 'light' : 'dark'));
+    },
+  };
 }
 
 function useAutosave(enabled: boolean, onSaved?: () => void): void {
@@ -119,15 +123,20 @@ function HomePage({
   charts,
   onCreateNew,
   onOpenChart,
+  themeMode,
+  onToggleTheme,
 }: {
   charts: SavedDiagramRecord[];
   onCreateNew: () => void;
   onOpenChart: (chart: SavedDiagramRecord) => void;
+  themeMode: ThemeMode;
+  onToggleTheme: () => void;
 }): JSX.Element {
   const latestChart = charts[0];
   const totalNodes = charts.reduce((sum, chart) => sum + chart.nodeCount, 0);
   const totalEdges = charts.reduce((sum, chart) => sum + chart.edgeCount, 0);
   const latestUpdatedAt = latestChart ? formatUpdatedAt(latestChart.updatedAt) : 'No saved edits yet';
+  const ThemeIcon = themeMode === 'dark' ? Sun : Moon;
   const workspaceHighlights = [
     {
       icon: Save,
@@ -148,9 +157,17 @@ function HomePage({
 
   return (
     <div className="home-shell">
+      <div className="home-shell__toolbar">
+        <p className="eyebrow">Workflow Studio</p>
+        <button className="status-pill status-pill--button" onClick={onToggleTheme} type="button">
+          <ThemeIcon size={14} />
+          {themeMode === 'dark' ? 'Light theme' : 'Dark theme'}
+        </button>
+      </div>
+
       <header className="home-hero">
         <div className="home-hero__copy">
-          <p className="eyebrow">Workflow Studio</p>
+          <p className="eyebrow">Diagram Workspace</p>
           <h1>Design, revisit, and hand off polished flowcharts from one professional workspace.</h1>
           <p>
             Build from scratch, resume active diagrams, and keep local process maps ready for fast iteration, stakeholder review, and export.
@@ -393,10 +410,10 @@ function PropertiesPanel(): JSX.Element {
 
 function Canvas({
   onReady,
-  prefersDarkMode,
+  themeMode,
 }: {
   onReady: (instance: ReactFlowInstance<FlowNode, FlowEdge>) => void;
-  prefersDarkMode: boolean;
+  themeMode: ThemeMode;
 }): JSX.Element {
   const document = useEditorStore((state) => state.document);
   const onNodesChange = useEditorStore((state) => state.onNodesChange);
@@ -405,8 +422,9 @@ function Canvas({
   const setViewport = useEditorStore((state) => state.setViewport);
   const syncSelection = useEditorStore((state) => state.syncSelection);
   const snapshotCurrent = useEditorStore((state) => state.snapshotCurrent);
-  const canvasGridColor = prefersDarkMode ? '#2B2B2B' : '#E9ECEF';
-  const minimapMaskColor = prefersDarkMode ? 'rgba(18, 18, 18, 0.72)' : 'rgba(248, 249, 250, 0.82)';
+  const isDarkTheme = themeMode === 'dark';
+  const canvasGridColor = isDarkTheme ? '#2B2B2B' : '#E9ECEF';
+  const minimapMaskColor = isDarkTheme ? 'rgba(18, 18, 18, 0.72)' : 'rgba(248, 249, 250, 0.82)';
 
   return (
     <ReactFlow
@@ -424,7 +442,7 @@ function Canvas({
       minZoom={0.3}
       maxZoom={2.5}
       nodeTypes={nodeTypes}
-      colorMode={prefersDarkMode ? 'dark' : 'light'}
+      colorMode={isDarkTheme ? 'dark' : 'light'}
       defaultEdgeOptions={{ type: 'smoothstep', animated: false }}
     >
       <MiniMap
@@ -440,7 +458,7 @@ function Canvas({
 }
 
 function FlowcraftApp(): JSX.Element {
-  const prefersDarkMode = usePrefersDarkMode();
+  const { themeMode, toggleThemeMode } = useThemeMode();
   const [screen, setScreen] = useState<'home' | 'editor'>('home');
   const [savedCharts, setSavedCharts] = useState<SavedDiagramRecord[]>(() => listStoredDocuments());
   const [reactFlow, setReactFlow] = useState<ReactFlowInstance<FlowNode, FlowEdge> | null>(null);
@@ -466,6 +484,7 @@ function FlowcraftApp(): JSX.Element {
   const resetDocument = useEditorStore((state) => state.resetDocument);
   const importDocument = useEditorStore((state) => state.importDocument);
   const deleteSelection = useEditorStore((state) => state.deleteSelection);
+  const ThemeIcon = themeMode === 'dark' ? Sun : Moon;
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -510,7 +529,15 @@ function FlowcraftApp(): JSX.Element {
   };
 
   if (screen === 'home') {
-    return <HomePage charts={savedCharts} onCreateNew={createNewChart} onOpenChart={openChart} />;
+    return (
+      <HomePage
+        charts={savedCharts}
+        onCreateNew={createNewChart}
+        onOpenChart={openChart}
+        themeMode={themeMode}
+        onToggleTheme={toggleThemeMode}
+      />
+    );
   }
 
   return (
@@ -533,6 +560,10 @@ function FlowcraftApp(): JSX.Element {
         </div>
 
         <div className="topbar__meta">
+          <button className="status-pill status-pill--button" onClick={toggleThemeMode} type="button">
+            <ThemeIcon size={14} />
+            {themeMode === 'dark' ? 'Light theme' : 'Dark theme'}
+          </button>
           <button className="status-pill status-pill--button" onClick={goHome} type="button">
             <House size={14} />
             Home
@@ -628,7 +659,7 @@ function FlowcraftApp(): JSX.Element {
           </div>
           <div className="canvas-frame" ref={canvasRef}>
             <ReactFlowProvider>
-              <Canvas onReady={setReactFlow} prefersDarkMode={prefersDarkMode} />
+              <Canvas onReady={setReactFlow} themeMode={themeMode} />
             </ReactFlowProvider>
           </div>
         </main>
