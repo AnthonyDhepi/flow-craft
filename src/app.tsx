@@ -3,6 +3,7 @@ import { Background, Controls, MiniMap, ReactFlow, ReactFlowProvider, type React
 import { ArrowLeft, Braces, Clock3, Download, FolderOpen, House, ImageDown, LayoutTemplate, Moon, PenSquare, Plus, Redo2, RotateCcw, Save, Sparkles, Sun, Trash2, Undo2, Upload } from 'lucide-react';
 import { FlowNodeCard } from './components/flow-node';
 import { DOCUMENT_VERSION, NODE_LIBRARY, getDiagramMetrics } from './lib/diagram';
+import { IMPORT_FORMAT_NOTE, getImportTemplate } from './lib/import';
 import { downloadDocument, exportCanvasToPng, listStoredDocuments, readDocumentFromFile, saveStoredDocument } from './lib/persistence';
 import { useEditorStore } from './store/editor-store';
 import type { EdgeRisk, FlowEdge, FlowNode, SavedDiagramRecord } from './types';
@@ -11,6 +12,10 @@ const nodeTypes = { flowNode: FlowNodeCard };
 const THEME_STORAGE_KEY = 'flowcraft.theme';
 
 type ThemeMode = 'dark' | 'light';
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : 'Unexpected error';
+}
 
 function useThemeMode(): { themeMode: ThemeMode; toggleThemeMode: () => void } {
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
@@ -51,13 +56,25 @@ function useAutosave(enabled: boolean, onSaved?: () => void): void {
     }
 
     setSaveStatus('Saving changes...');
+    let cancelled = false;
     const timer = window.setTimeout(() => {
-      saveStoredDocument(document);
-      setSaveStatus(`Saved at ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`);
-      onSaved?.();
+      void (async () => {
+        try {
+          await saveStoredDocument(document);
+          if (cancelled) return;
+          setSaveStatus(`Saved at ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`);
+          onSaved?.();
+        } catch {
+          if (cancelled) return;
+          setSaveStatus('Autosave failed');
+        }
+      })();
     }, 240);
 
-    return () => window.clearTimeout(timer);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
   }, [document, enabled, onSaved, setSaveStatus]);
 }
 
@@ -140,8 +157,8 @@ function HomePage({
   const workspaceHighlights = [
     {
       icon: Save,
-      title: 'Local autosave',
-      description: 'Keep working without manual checkpoints while your latest version stays ready to reopen.',
+      title: 'Local diagram database',
+      description: 'Keep working without manual checkpoints while diagrams stay saved in your browser for quick reopen.',
     },
     {
       icon: LayoutTemplate,
@@ -460,13 +477,14 @@ function Canvas({
 function FlowcraftApp(): JSX.Element {
   const { themeMode, toggleThemeMode } = useThemeMode();
   const [screen, setScreen] = useState<'home' | 'editor'>('home');
-  const [savedCharts, setSavedCharts] = useState<SavedDiagramRecord[]>(() => listStoredDocuments());
+  const [savedCharts, setSavedCharts] = useState<SavedDiagramRecord[]>([]);
   const [reactFlow, setReactFlow] = useState<ReactFlowInstance<FlowNode, FlowEdge> | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [shouldFitView, setShouldFitView] = useState(false);
 
-  const refreshSavedCharts = useCallback(() => {
-    setSavedCharts(listStoredDocuments());
+  const refreshSavedCharts = useCallback(async () => {
+    const charts = await listStoredDocuments();
+    setSavedCharts(charts);
   }, []);
 
   useAutosave(screen === 'editor', refreshSavedCharts);
@@ -499,6 +517,10 @@ function FlowcraftApp(): JSX.Element {
     });
   }, [reactFlow, screen, shouldFitView]);
 
+  useEffect(() => {
+    void refreshSavedCharts();
+  }, [refreshSavedCharts]);
+
   const runAutoLayout = (direction: 'TB' | 'LR') => {
     autoLayout(direction);
     window.requestAnimationFrame(() => {
@@ -523,9 +545,15 @@ function FlowcraftApp(): JSX.Element {
   };
 
   const goHome = () => {
-    saveStoredDocument(document);
-    refreshSavedCharts();
-    setScreen('home');
+    void (async () => {
+      try {
+        await saveStoredDocument(document);
+        await refreshSavedCharts();
+        setScreen('home');
+      } catch (error) {
+        setNotice(`Save failed: ${getErrorMessage(error)}`);
+      }
+    })();
   };
 
   if (screen === 'home') {
@@ -629,6 +657,10 @@ function FlowcraftApp(): JSX.Element {
               }} type="button"><ImageDown size={16} />Export PNG</button>
               <button onClick={openImport} type="button"><Upload size={16} />Import JSON</button>
               <button onClick={async () => {
+                await navigator.clipboard.writeText(getImportTemplate());
+                setNotice('Import template copied');
+              }} type="button"><Braces size={16} />Copy template</button>
+              <button onClick={async () => {
                 await navigator.clipboard.writeText(JSON.stringify(document, null, 2));
                 setNotice('JSON copied');
               }} type="button"><Braces size={16} />Copy JSON</button>
@@ -641,7 +673,10 @@ function FlowcraftApp(): JSX.Element {
               <Sparkles size={16} />
             </div>
             <p className="panel__note">
-              Autosave stays local, exports remain portable, and the canvas is tuned for fast diagram edits without changing your workflow.
+              Autosave and saved diagrams stay in your browser&apos;s local database, while exports remain portable for handoff or backup.
+            </p>
+            <p className="panel__note">
+              {IMPORT_FORMAT_NOTE} Use <strong>Copy template</strong> when you want a model to generate an import file that opens cleanly here.
             </p>
           </section>
         </aside>
@@ -678,8 +713,8 @@ function FlowcraftApp(): JSX.Element {
             importDocument(next);
             setNotice('Diagram imported');
             setShouldFitView(true);
-          } catch {
-            setNotice('Import failed: invalid diagram JSON');
+          } catch (error) {
+            setNotice(`Import failed: ${getErrorMessage(error)}`);
           }
           event.currentTarget.value = '';
         }}

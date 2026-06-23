@@ -39,4 +39,29 @@ describe('diagram utilities', () => {
     expect(metrics.disconnectedNodes).toBe(1);
     expect(metrics.terminalNodes).toBe(2);
   });
+
+  it('expands node dimensions when text would be clipped', () => {
+    const document = sanitizeDocument({
+      version: 3,
+      meta: { name: 'Verbose flow', version: 3, updatedAt: new Date().toISOString() },
+      viewport: { x: 0, y: 0, zoom: 1 },
+      nodes: [
+        {
+          id: 'verbose',
+          type: 'flowNode',
+          position: { x: 0, y: 0 },
+          data: {
+            kind: 'process',
+            label: 'Publish to delivery endpoints for every downstream environment',
+            description: 'Coordinate the release handoff with validation, regional rollout sequencing, incident checkpoints, and stakeholder notifications so the final step remains readable on the canvas.',
+            owner: 'Delivery Enablement Platform Team',
+          },
+        },
+      ],
+      edges: [],
+    });
+
+    expect(Number(document.nodes[0].style?.width)).toBeGreaterThan(250);
+    expect(Number(document.nodes[0].style?.height)).toBeGreaterThan(140);
+  });
 });

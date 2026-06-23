@@ -1,7 +1,7 @@
 import { MarkerType, addEdge, applyEdgeChanges, applyNodeChanges, type Connection, type EdgeChange, type NodeChange, type OnSelectionChangeParams, type Viewport } from '@xyflow/react';
 import { create } from 'zustand';
 import { applyAutoLayout } from '../lib/layout';
-import { applySelection, createBlankDocument, createEdge, createNode, getEdgeStrokeForRisk, getNextNodePosition, sanitizeDocument } from '../lib/diagram';
+import { applySelection, createBlankDocument, createEdge, createNode, getAutoSizedNodeStyle, getEdgeStrokeForRisk, getNextNodePosition, sanitizeDocument } from '../lib/diagram';
 import { loadStoredDocument } from '../lib/persistence';
 import type { DiagramDocument, FlowEdge, FlowEdgeData, FlowNode, FlowNodeData, LayoutDirection, NodeKind } from '../types';
 
@@ -22,6 +22,7 @@ type EditorState = {
   setSaveStatus: (status: string) => void;
   setViewport: (viewport: Viewport) => void;
   syncSelection: (selection: OnSelectionChangeParams<FlowNode, FlowEdge>) => void;
+  syncNodeSize: (nodeId: string, size: { width: number; height: number }) => void;
   onNodesChange: (changes: NodeChange<FlowNode>[]) => void;
   onEdgesChange: (changes: EdgeChange<FlowEdge>[]) => void;
   addNode: (kind: NodeKind) => void;
@@ -92,8 +93,54 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       document: applySelection(state.document, { nodeId, edgeId }),
     };
   }),
+  syncNodeSize: (nodeId, size) => set((state) => {
+    const node = state.document.nodes.find((entry) => entry.id === nodeId);
+    if (!node) return {};
+
+    const baseStyle = getAutoSizedNodeStyle(node.data.kind, node.data);
+    const width = Math.max(baseStyle.width, Math.ceil(size.width));
+    const height = Math.max(baseStyle.height, Math.ceil(size.height));
+    const currentWidth = Number(node.style?.width) || baseStyle.width;
+    const currentHeight = Number(node.style?.height) || baseStyle.height;
+
+    if (currentWidth === width && currentHeight === height) {
+      return {};
+    }
+
+    return {
+      document: {
+        ...state.document,
+        nodes: state.document.nodes.map((entry) => (
+          entry.id === nodeId
+            ? {
+                ...entry,
+                style: {
+                  ...entry.style,
+                  width,
+                  height,
+                },
+              }
+            : entry
+        )),
+      },
+    };
+  }),
   onNodesChange: (changes) => set((state) => {
-    const nodes = applyNodeChanges<FlowNode>(changes, state.document.nodes);
+    const resizedNodeDimensions = new Map(
+      changes.flatMap((change) => (
+        change.type === 'dimensions' && change.dimensions
+          ? [[change.id, change.dimensions] as const]
+          : []
+      )),
+    );
+    const nodes = applyNodeChanges<FlowNode>(changes, state.document.nodes).map((node) => {
+      const resizedDimensions = resizedNodeDimensions.get(node.id);
+      if (!resizedDimensions) return node;
+      return {
+        ...node,
+        style: getAutoSizedNodeStyle(node.data.kind, node.data, resizedDimensions),
+      };
+    });
     return {
       document: {
         ...state.document,
@@ -132,7 +179,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       ...source.data,
       label: `${source.data.label} copy`,
     };
-    duplicate.style = source.style;
+    duplicate.style = getAutoSizedNodeStyle(source.data.kind, duplicate.data, source.style);
     const next = applyDocumentMutation(state, (document) => ({
       ...document,
       nodes: [...document.nodes, duplicate],
@@ -170,7 +217,14 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       ...document,
       nodes: document.nodes.map((node) => (
         node.id === state.selection.nodeId
-          ? { ...node, data: { ...node.data, ...changes } }
+          ? (() => {
+              const data = { ...node.data, ...changes };
+              return {
+                ...node,
+                data,
+                style: getAutoSizedNodeStyle(data.kind, data, node.style),
+              };
+            })()
           : node
       )),
     }));

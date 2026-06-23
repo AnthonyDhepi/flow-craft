@@ -7,6 +7,7 @@ export const LEGACY_STORAGE_KEY = 'flowcraft.live.state.v2';
 export const DEFAULT_CONNECTOR_COLOR = '#495057';
 export const WARNING_CONNECTOR_COLOR = '#FFC107';
 export const DANGER_CONNECTOR_COLOR = '#DC3545';
+export const EMPTY_NODE_DESCRIPTION = 'Add context so the next reviewer understands the step.';
 
 const DEFAULT_VIEWPORT = { x: 0, y: 0, zoom: 1 };
 
@@ -104,7 +105,7 @@ export function getEdgeStrokeForRisk(risk: EdgeRisk): string {
   }
 }
 
-function getNodeSize(kind: NodeKind): { width: number; height: number } {
+export function getNodeSize(kind: NodeKind): { width: number; height: number } {
   switch (kind) {
     case 'decision':
       return { width: 250, height: 164 };
@@ -113,6 +114,75 @@ function getNodeSize(kind: NodeKind): { width: number; height: number } {
     default:
       return { width: 250, height: 140 };
   }
+}
+
+function estimateWrappedLineCount(text: string, charactersPerLine: number): number {
+  const normalized = text.trim().replace(/\s+/g, ' ');
+  if (!normalized) return 1;
+
+  const words = normalized.split(' ');
+  let lines = 1;
+  let currentLineLength = 0;
+
+  words.forEach((word) => {
+    const segments = Math.max(1, Math.ceil(word.length / charactersPerLine));
+    const wordLength = Math.min(word.length, charactersPerLine);
+
+    if (!currentLineLength) {
+      currentLineLength = wordLength;
+      lines += segments - 1;
+      return;
+    }
+
+    if (currentLineLength + 1 + wordLength > charactersPerLine) {
+      lines += 1;
+      currentLineLength = wordLength;
+      lines += segments - 1;
+      return;
+    }
+
+    currentLineLength += 1 + wordLength;
+    lines += segments - 1;
+  });
+
+  return lines;
+}
+
+export function getAutoSizedNodeStyle(
+  kind: NodeKind,
+  data: Pick<FlowNodeData, 'kind' | 'label' | 'description' | 'owner'>,
+  style?: { width?: unknown; height?: unknown },
+): { width: number; height: number } {
+  const baseSize = getNodeSize(kind);
+  const textSamples = [
+    data.label,
+    data.description || EMPTY_NODE_DESCRIPTION,
+    data.owner || 'Unassigned',
+  ];
+  const longestTokenLength = Math.max(
+    ...textSamples
+      .flatMap((value) => value.split(/\s+/))
+      .map((token) => token.length),
+    0,
+  );
+  const widthBias = Math.max(data.label.length, Math.round(longestTokenLength * 1.6));
+  const computedWidth = Math.min(420, baseSize.width + Math.max(0, widthBias - 24) * 6);
+  const width = Math.max(asDimension(style?.width, baseSize.width), computedWidth);
+  const contentWidth = Math.max(120, width - (kind === 'decision' || kind === 'data' ? 72 : 32));
+  const headingCharsPerLine = Math.max(14, Math.floor(contentWidth / 9));
+  const bodyCharsPerLine = Math.max(18, Math.floor(contentWidth / 7));
+  const labelLines = estimateWrappedLineCount(data.label, headingCharsPerLine);
+  const descriptionLines = estimateWrappedLineCount(data.description || EMPTY_NODE_DESCRIPTION, bodyCharsPerLine);
+  const ownerLines = estimateWrappedLineCount(data.owner || 'Unassigned', bodyCharsPerLine);
+  const computedHeight = baseSize.height
+    + Math.max(0, labelLines - 1) * 24
+    + Math.max(0, descriptionLines - 2) * 16
+    + Math.max(0, ownerLines - 1) * 14;
+
+  return {
+    width,
+    height: Math.max(asDimension(style?.height, baseSize.height), computedHeight),
+  };
 }
 
 function shapeToKind(shape: unknown): NodeKind {
@@ -132,25 +202,26 @@ function normalizeNode(raw: unknown, index: number): FlowNode {
   const record = raw as Partial<FlowNode>;
   const data = (record.data ?? {}) as Partial<FlowNodeData>;
   const kind = asKind(data.kind ?? shapeToKind((record as { shape?: string }).shape));
-  const size = getNodeSize(kind);
+  const normalizedData = {
+    ...createDefaultNodeData(kind, asString(data.label, asString((record as { label?: string }).label, DEFAULT_LABEL_BY_KIND[kind]))),
+    description: asString(data.description),
+    owner: asString(data.owner, DEFAULT_NODE_BY_KIND[kind].owner),
+    status: asStatus(data.status),
+    accent: asString(data.accent, asString((record as { stroke?: string }).stroke, DEFAULT_NODE_BY_KIND[kind].accent)),
+    notes: asString(data.notes),
+  };
+
   return {
     id: asString(record.id, `node-${index + 1}`),
     type: 'flowNode',
     position: asPosition(record.position ?? { x: (record as { x?: number }).x, y: (record as { y?: number }).y }),
-    data: {
-      ...createDefaultNodeData(kind, asString(data.label, asString((record as { label?: string }).label, DEFAULT_LABEL_BY_KIND[kind]))),
-      description: asString(data.description),
-      owner: asString(data.owner, DEFAULT_NODE_BY_KIND[kind].owner),
-      status: asStatus(data.status),
-      accent: asString(data.accent, asString((record as { stroke?: string }).stroke, DEFAULT_NODE_BY_KIND[kind].accent)),
-      notes: asString(data.notes),
-    },
+    data: normalizedData,
     draggable: true,
     selectable: true,
-    style: {
-      width: asDimension(record.style?.width ?? (record as { w?: number }).w, size.width),
-      height: asDimension(record.style?.height ?? (record as { h?: number }).h, size.height),
-    },
+    style: getAutoSizedNodeStyle(kind, normalizedData, {
+      width: record.style?.width ?? (record as { w?: number }).w,
+      height: record.style?.height ?? (record as { h?: number }).h,
+    }),
     selected: Boolean(record.selected),
   };
 }
@@ -211,13 +282,13 @@ export function applySelection(document: DiagramDocument, selection: { nodeId?: 
 }
 
 export function createNode(kind: NodeKind, position: XYPosition): FlowNode {
-  const size = getNodeSize(kind);
+  const data = createDefaultNodeData(kind);
   return {
     id: createId('node'),
     type: 'flowNode',
     position,
-    style: { width: size.width, height: size.height },
-    data: createDefaultNodeData(kind),
+    style: getAutoSizedNodeStyle(kind, data),
+    data,
   };
 }
 
