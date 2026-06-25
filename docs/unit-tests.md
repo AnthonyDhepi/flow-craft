@@ -1,6 +1,6 @@
 # Unit tests
 
-FlowCraft uses **Vitest** for unit testing.
+Reranga uses **Vitest** for unit testing.
 
 ## Run the unit tests
 

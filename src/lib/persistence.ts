@@ -116,7 +116,7 @@ export async function listStoredDocuments(): Promise<SavedDiagramRecord[]> {
 
 export function downloadDocument(document: DiagramDocument): void {
   download(
-    `${document.meta.name.toLowerCase().replace(/\s+/g, '-') || 'flowcraft'}.json`,
+    `${document.meta.name.toLowerCase().replace(/\s+/g, '-') || 'reranga'}.json`,
     new Blob([serializeDocument(document)], { type: 'application/json' }),
   );
 }
@@ -135,7 +135,7 @@ export async function exportCanvasToPng(element: HTMLElement, document: DiagramD
   const response = await fetch(dataUrl);
   const blob = await response.blob();
   download(
-    `${document.meta.name.toLowerCase().replace(/\s+/g, '-') || 'flowcraft'}.png`,
+    `${document.meta.name.toLowerCase().replace(/\s+/g, '-') || 'reranga'}.png`,
     blob,
   );
 }

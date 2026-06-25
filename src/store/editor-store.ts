@@ -289,7 +289,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       ...state.document,
       meta: {
         ...state.document.meta,
-        name: name.trim() || 'Untitled flow',
+        name: name.trim() || 'Untitled reranga',
       },
     },
   })),

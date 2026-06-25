@@ -320,7 +320,7 @@ export function createEdge(connection: Pick<Edge, 'source' | 'target' | 'sourceH
   };
 }
 
-export function createBlankDocument(name = 'Untitled flow'): DiagramDocument {
+export function createBlankDocument(name = 'Untitled reranga'): DiagramDocument {
   return {
     version: DOCUMENT_VERSION,
     meta: {
@@ -444,7 +444,7 @@ export function sanitizeDocument(raw: unknown): DiagramDocument {
     version: DOCUMENT_VERSION,
     meta: {
       id: asString(meta.id, createId('chart')),
-      name: asString(meta.name, 'Untitled flow'),
+      name: asString(meta.name, 'Untitled reranga'),
       version: DOCUMENT_VERSION,
       updatedAt: asString(meta.updatedAt, new Date().toISOString()),
     },

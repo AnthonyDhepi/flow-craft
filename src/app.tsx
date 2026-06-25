@@ -10,6 +10,23 @@ import type { EdgeRisk, FlowEdge, FlowNode, SavedDiagramRecord } from './types';
 
 const nodeTypes = { flowNode: FlowNodeCard };
 const THEME_STORAGE_KEY = 'flowcraft.theme';
+const APP_NAME = 'Reranga';
+const APP_MEANING = 'Flow state in Te Reo.';
+const DRAWER_MENU_ITEMS = ['File', 'Edit', 'View', 'Arrange', 'Extras', 'Help'] as const;
+const PLACEHOLDER_FEATURES = [
+  {
+    label: 'Layers',
+    description: 'Reserved for draw.io-style layer controls once multi-layer editing lands.',
+  },
+  {
+    label: 'Comments',
+    description: 'Kept visible in the layout as a placeholder for review threads and feedback pins.',
+  },
+  {
+    label: 'Pages',
+    description: 'Multi-page diagram navigation is represented here without pretending it already exists.',
+  },
+] as const;
 
 type ThemeMode = 'dark' | 'light';
 
@@ -20,11 +37,15 @@ function getErrorMessage(error: unknown): string {
 function useThemeMode(): { themeMode: ThemeMode; toggleThemeMode: () => void } {
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
     if (typeof window === 'undefined') {
-      return 'dark';
+      return 'light';
     }
 
     const storedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
-    return storedTheme === 'light' ? 'light' : 'dark';
+    if (storedTheme === 'light' || storedTheme === 'dark') {
+      return storedTheme;
+    }
+
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   });
 
   useEffect(() => {
@@ -32,6 +53,7 @@ function useThemeMode(): { themeMode: ThemeMode; toggleThemeMode: () => void } {
       return;
     }
 
+    document.documentElement.classList.toggle('dark', themeMode === 'dark');
     document.documentElement.dataset.theme = themeMode;
     document.documentElement.style.colorScheme = themeMode;
     window.localStorage.setItem(THEME_STORAGE_KEY, themeMode);
@@ -127,6 +149,18 @@ function MetricCard({ label, value }: { label: string; value: number }): JSX.Ele
   );
 }
 
+function PlaceholderCard({ label, description }: { label: string; description: string }): JSX.Element {
+  return (
+    <article className="placeholder-card">
+      <div className="placeholder-card__header">
+        <strong>{label}</strong>
+        <span className="status-pill">Placeholder</span>
+      </div>
+      <p>{description}</p>
+    </article>
+  );
+}
+
 function formatUpdatedAt(value: string): string {
   return new Date(value).toLocaleString([], {
     month: 'short',
@@ -157,37 +191,47 @@ function HomePage({
   const workspaceHighlights = [
     {
       icon: Save,
-      title: 'Local diagram database',
-      description: 'Keep working without manual checkpoints while diagrams stay saved in your browser for quick reopen.',
+      title: 'Local-first workspace',
+      description: 'Stay in flow with autosave, quick reopen, and a cleaner launchpad for active diagrams.',
     },
     {
       icon: LayoutTemplate,
-      title: 'Structured editing',
-      description: 'Use layout tools, reusable node types, and inline properties to keep diagrams clean.',
+      title: 'Draw.io-inspired layout',
+      description: 'Familiar chrome, clearer sidebars, and a stronger workspace hierarchy without leaving your color theme.',
     },
     {
       icon: ImageDown,
       title: 'Portable outputs',
-      description: 'Export JSON for reuse or PNG for sharing updates with stakeholders and delivery teams.',
+      description: 'Export JSON or PNG from the same workspace you use to map and review the diagram.',
     },
   ];
 
   return (
     <div className="home-shell">
-      <div className="home-shell__toolbar">
-        <p className="eyebrow">Workflow Studio</p>
+      <header className="surface-card surface-card--toolbar home-masthead">
+        <div className="brand-lockup brand-lockup--home">
+          <div className="brand-badge">
+            <LayoutTemplate size={18} />
+          </div>
+          <div>
+            <p className="eyebrow">{APP_NAME}</p>
+            <strong className="brand-lockup__title">{APP_NAME}</strong>
+            <p className="brand-lockup__subtitle">{APP_MEANING}</p>
+          </div>
+        </div>
         <button className="status-pill status-pill--button" onClick={onToggleTheme} type="button">
           <ThemeIcon size={14} />
           {themeMode === 'dark' ? 'Light theme' : 'Dark theme'}
         </button>
-      </div>
+      </header>
 
-      <header className="home-hero">
+      <section className="surface-card home-hero">
         <div className="home-hero__copy">
-          <p className="eyebrow">Diagram Workspace</p>
-          <h1>Design, revisit, and hand off polished flowcharts from one professional workspace.</h1>
+          <p className="eyebrow">Workflow studio</p>
+          <h1>Reranga gives your team a draw.io-style workspace with a calmer flow state.</h1>
           <p>
-            Build from scratch, resume active diagrams, and keep local process maps ready for fast iteration, stakeholder review, and export.
+            Build, reopen, and refine diagrams from a layout that feels familiar while staying aligned with your own visual
+            theme.
           </p>
           <div className="home-hero__meta">
             <span className="status-pill">{charts.length} saved chart{charts.length === 1 ? '' : 's'}</span>
@@ -207,38 +251,45 @@ function HomePage({
             ) : null}
           </div>
         </div>
+
         <aside className="home-hero__summary">
           <div className="home-summary-card">
             <span className="home-summary-card__label">Latest activity</span>
-            <strong>{latestChart?.name ?? 'Create your first workflow'}</strong>
+            <strong>{latestChart?.name ?? 'Create your first reranga'}</strong>
             <p>{latestUpdatedAt}</p>
           </div>
-          <div className="home-summary-grid">
-            <div className="home-summary-stat">
-              <span>Workspace</span>
-              <strong>{charts.length}</strong>
-              <p>Saved diagrams</p>
+
+          <div className="workspace-preview">
+            <div className="workspace-preview__header">
+              <strong>Workspace preview</strong>
+              <span className="status-pill">Inspired by draw.io</span>
             </div>
-            <div className="home-summary-stat">
-              <span>Coverage</span>
-              <strong>{totalNodes}</strong>
-              <p>Total flow steps</p>
-            </div>
-            <div className="home-summary-stat">
-              <span>Links</span>
-              <strong>{totalEdges}</strong>
-              <p>Connected paths</p>
+            <div className="workspace-preview__layout">
+              <div className="workspace-preview__rail">
+                <span>Shapes</span>
+                <span>Pages</span>
+                <span>Notes</span>
+              </div>
+              <div className="workspace-preview__canvas">
+                <span>Canvas</span>
+                <div className="workspace-preview__grid" />
+              </div>
+              <div className="workspace-preview__rail workspace-preview__rail--right">
+                <span>Overview</span>
+                <span>Format</span>
+                <span>Layers</span>
+              </div>
             </div>
           </div>
         </aside>
-      </header>
+      </section>
 
       <div className="home-layout">
-        <section className="home-section">
-          <div className="home-section__header">
+        <section className="surface-card home-section">
+          <div className="section-header">
             <div>
               <h2>Recent charts</h2>
-              <p>Open any saved diagram and continue editing from where you left off.</p>
+              <p>Resume where you left off from a cleaner, more workspace-driven dashboard.</p>
             </div>
             <span className="status-pill">{charts.length} saved</span>
           </div>
@@ -248,7 +299,7 @@ function HomePage({
               <FolderOpen size={18} />
               <div>
                 <strong>No saved charts yet</strong>
-                <p>Create a new chart to start building your local workspace library.</p>
+                <p>Create a new chart to start your first reranga.</p>
               </div>
             </div>
           ) : (
@@ -269,7 +320,7 @@ function HomePage({
                   </div>
                   <button className="chart-card__action" onClick={() => onOpenChart(chart)} type="button">
                     <PenSquare size={16} />
-                    Edit chart
+                    Open chart
                   </button>
                 </article>
               ))}
@@ -278,11 +329,11 @@ function HomePage({
         </section>
 
         <aside className="home-rail">
-          <section className="home-section home-section--stacked">
-            <div className="home-section__header">
+          <section className="surface-card home-section">
+            <div className="section-header">
               <div>
                 <h2>Workspace standards</h2>
-                <p>Everything you need to keep flowcharts polished and ready to share.</p>
+                <p>Every card and container now follows the same spacing, borders, and surface treatment.</p>
               </div>
               <Sparkles size={16} />
             </div>
@@ -297,6 +348,21 @@ function HomePage({
                     <p>{description}</p>
                   </div>
                 </article>
+              ))}
+            </div>
+          </section>
+
+          <section className="surface-card home-section">
+            <div className="section-header">
+              <div>
+                <h2>Placeholders</h2>
+                <p>Draw.io features we do not support yet stay visible as clearly labeled placeholders.</p>
+              </div>
+              <Clock3 size={16} />
+            </div>
+            <div className="placeholder-list">
+              {PLACEHOLDER_FEATURES.map((feature) => (
+                <PlaceholderCard key={feature.label} label={feature.label} description={feature.description} />
               ))}
             </div>
           </section>
@@ -340,14 +406,14 @@ function PropertiesPanel(): JSX.Element {
 
       <section className="panel">
         <div className="panel__header">
-          <span>Inspector</span>
+          <span>Format &amp; data</span>
           <Braces size={16} />
         </div>
 
         {!selectedNode && !selectedEdge && (
           <div className="empty-state">
             <h3>Select a node or connection</h3>
-            <p>Use the canvas to edit labels, ownership, annotations, and risk details in place.</p>
+            <p>Use the canvas to adjust labels, ownership, notes, and connection details from this format panel.</p>
           </div>
         )}
 
@@ -421,6 +487,18 @@ function PropertiesPanel(): JSX.Element {
           </div>
         )}
       </section>
+
+      <section className="panel panel--compact">
+        <div className="panel__header">
+          <span>Draw.io placeholders</span>
+          <Clock3 size={16} />
+        </div>
+        <div className="placeholder-list">
+          {PLACEHOLDER_FEATURES.map((feature) => (
+            <PlaceholderCard key={feature.label} label={feature.label} description={feature.description} />
+          ))}
+        </div>
+      </section>
     </aside>
   );
 }
@@ -440,8 +518,8 @@ function Canvas({
   const syncSelection = useEditorStore((state) => state.syncSelection);
   const snapshotCurrent = useEditorStore((state) => state.snapshotCurrent);
   const isDarkTheme = themeMode === 'dark';
-  const canvasGridColor = isDarkTheme ? '#2B2B2B' : '#E9ECEF';
-  const minimapMaskColor = isDarkTheme ? 'rgba(18, 18, 18, 0.72)' : 'rgba(248, 249, 250, 0.82)';
+  const canvasGridColor = 'var(--canvas-grid)';
+  const minimapMaskColor = 'var(--minimap-mask)';
 
   return (
     <ReactFlow
@@ -474,7 +552,7 @@ function Canvas({
   );
 }
 
-function FlowcraftApp(): JSX.Element {
+function RerangaApp(): JSX.Element {
   const { themeMode, toggleThemeMode } = useThemeMode();
   const [screen, setScreen] = useState<'home' | 'editor'>('home');
   const [savedCharts, setSavedCharts] = useState<SavedDiagramRecord[]>([]);
@@ -569,49 +647,127 @@ function FlowcraftApp(): JSX.Element {
   }
 
   return (
-    <div className="shell">
-      <header className="topbar">
-        <div className="brand-lockup">
-          <div className="brand-lockup__row">
-            <button className="icon-button" onClick={goHome} type="button">
-              <ArrowLeft size={16} />
-            </button>
-            <p className="eyebrow">Workflow Studio</p>
+    <div className="editor-shell">
+      <header className="surface-card surface-card--toolbar editor-menubar">
+        <div className="editor-menubar__brand">
+          <div className="brand-lockup">
+            <div className="brand-badge">
+              <LayoutTemplate size={18} />
+            </div>
+            <div>
+              <p className="eyebrow">{APP_NAME}</p>
+              <strong className="brand-lockup__title">{APP_NAME}</strong>
+              <p className="brand-lockup__subtitle">{APP_MEANING}</p>
+            </div>
           </div>
-          <p className="brand-lockup__subtitle">A calmer workspace for shaping process maps, annotations, and export-ready diagrams.</p>
-          <input
-            aria-label="Diagram name"
-            className="diagram-title"
-            onChange={(event) => renameDiagram(event.target.value)}
-            value={document.meta.name}
-          />
         </div>
 
-        <div className="topbar__meta">
-          <button className="status-pill status-pill--button" onClick={toggleThemeMode} type="button">
-            <ThemeIcon size={14} />
-            {themeMode === 'dark' ? 'Light theme' : 'Dark theme'}
-          </button>
-          <button className="status-pill status-pill--button" onClick={goHome} type="button">
-            <House size={14} />
-            Home
-          </button>
+        <nav aria-label="Workspace menu" className="editor-menu">
+          {DRAWER_MENU_ITEMS.map((item) => (
+            <span key={item} className="editor-menu__item">{item}</span>
+          ))}
+        </nav>
+
+        <div className="editor-menubar__meta">
           <span className="status-pill">{saveStatus}</span>
           <span className="status-pill">{metrics.totalNodes} steps</span>
           <span className="status-pill">{metrics.totalEdges} links</span>
-          <span className="status-pill">Schema v{DOCUMENT_VERSION}</span>
           {notice ? <span className="status-pill status-pill--notice">{notice}</span> : null}
         </div>
       </header>
+
+      <div className="surface-card surface-card--toolbar editor-toolbar">
+        <div className="editor-toolbar__group">
+          <button className="toolbar-button" onClick={goHome} type="button">
+            <ArrowLeft size={16} />
+            Back
+          </button>
+          <button className="toolbar-button" onClick={toggleThemeMode} type="button">
+            <ThemeIcon size={16} />
+            {themeMode === 'dark' ? 'Light' : 'Dark'}
+          </button>
+          <button className="toolbar-button" onClick={createNewChart} type="button">
+            <House size={16} />
+            New
+          </button>
+        </div>
+
+        <div className="editor-toolbar__group">
+          <button className="toolbar-button" disabled={!history.length} onClick={undo} type="button">
+            <Undo2 size={16} />
+            Undo
+          </button>
+          <button className="toolbar-button" disabled={!future.length} onClick={redo} type="button">
+            <Redo2 size={16} />
+            Redo
+          </button>
+          <button className="toolbar-button" onClick={resetDocument} type="button">
+            <RotateCcw size={16} />
+            Reset
+          </button>
+        </div>
+
+        <div className="editor-toolbar__group">
+          <button className="toolbar-button" onClick={() => runAutoLayout('TB')} type="button">
+            <LayoutTemplate size={16} />
+            Stack
+          </button>
+          <button className="toolbar-button" onClick={() => runAutoLayout('LR')} type="button">
+            <LayoutTemplate size={16} />
+            Side
+          </button>
+          <button className="toolbar-button" onClick={() => reactFlow?.fitView({ padding: 0.18, duration: 300 })} type="button">
+            <Sparkles size={16} />
+            Fit
+          </button>
+        </div>
+
+        <div className="editor-toolbar__group">
+          <button className="toolbar-button" onClick={() => {
+            downloadDocument(document);
+            setNotice('JSON exported');
+          }} type="button">
+            <Download size={16} />
+            JSON
+          </button>
+          <button className="toolbar-button" onClick={async () => {
+            if (!canvasRef.current) return;
+            await exportCanvasToPng(canvasRef.current, document);
+            setNotice('PNG exported');
+          }} type="button">
+            <ImageDown size={16} />
+            PNG
+          </button>
+          <button className="toolbar-button" onClick={openImport} type="button">
+            <Upload size={16} />
+            Import
+          </button>
+          <button className="toolbar-button" onClick={async () => {
+            await navigator.clipboard.writeText(getImportTemplate());
+            setNotice('Import template copied');
+          }} type="button">
+            <Braces size={16} />
+            Template
+          </button>
+        </div>
+
+        <div className="editor-toolbar__group editor-toolbar__group--placeholder">
+          {PLACEHOLDER_FEATURES.map((feature) => (
+            <button key={feature.label} className="toolbar-button toolbar-button--placeholder" disabled type="button">
+              {feature.label}
+            </button>
+          ))}
+        </div>
+      </div>
 
       <div className="workspace">
         <aside className="sidebar sidebar-left">
           <section className="panel">
             <div className="panel__header">
-              <span>Building blocks</span>
+              <span>Shapes</span>
               <Plus size={16} />
             </div>
-            <p className="panel__intro">Choose a starting shape, then adjust the details from the inspector.</p>
+            <p className="panel__intro">Choose a starting block, then refine its details from the format panel.</p>
             <div className="library-list">
               {NODE_LIBRARY.map((item) => (
                 <button key={item.kind} className="library-card" onClick={() => addNode(item.kind)} type="button">
@@ -625,73 +781,70 @@ function FlowcraftApp(): JSX.Element {
             </div>
           </section>
 
-          <section className="panel">
-            <div className="panel__header">
-              <span>Workspace tools</span>
-              <LayoutTemplate size={16} />
-            </div>
-            <div className="action-grid">
-              <button onClick={undo} disabled={!history.length} type="button"><Undo2 size={16} />Undo</button>
-              <button onClick={redo} disabled={!future.length} type="button"><Redo2 size={16} />Redo</button>
-              <button onClick={() => runAutoLayout('TB')} type="button"><LayoutTemplate size={16} />Stack layout</button>
-              <button onClick={() => runAutoLayout('LR')} type="button"><LayoutTemplate size={16} />Side layout</button>
-              <button onClick={() => reactFlow?.fitView({ padding: 0.18, duration: 300 })} type="button"><Sparkles size={16} />Fit canvas</button>
-              <button onClick={resetDocument} type="button"><RotateCcw size={16} />Reset</button>
-            </div>
-          </section>
-
           <section className="panel panel--compact">
             <div className="panel__header">
-              <span>Outputs</span>
-              <Save size={16} />
+              <span>Pages</span>
+              <Clock3 size={16} />
             </div>
-            <div className="action-grid action-grid--compact">
-              <button onClick={() => {
-                downloadDocument(document);
-                setNotice('JSON exported');
-              }} type="button"><Download size={16} />Export JSON</button>
-              <button onClick={async () => {
-                if (!canvasRef.current) return;
-                await exportCanvasToPng(canvasRef.current, document);
-                setNotice('PNG exported');
-              }} type="button"><ImageDown size={16} />Export PNG</button>
-              <button onClick={openImport} type="button"><Upload size={16} />Import JSON</button>
-              <button onClick={async () => {
-                await navigator.clipboard.writeText(getImportTemplate());
-                setNotice('Import template copied');
-              }} type="button"><Braces size={16} />Copy template</button>
-              <button onClick={async () => {
-                await navigator.clipboard.writeText(JSON.stringify(document, null, 2));
-                setNotice('JSON copied');
-              }} type="button"><Braces size={16} />Copy JSON</button>
+            <div className="placeholder-list">
+              <PlaceholderCard
+                label="Single canvas"
+                description="Multi-page navigation is still a placeholder, so the layout feels familiar without implying full support."
+              />
             </div>
           </section>
 
           <section className="panel">
             <div className="panel__header">
               <span>Workspace notes</span>
-              <Sparkles size={16} />
+              <Save size={16} />
             </div>
             <p className="panel__note">
               Autosave and saved diagrams stay in your browser&apos;s local database, while exports remain portable for handoff or backup.
             </p>
             <p className="panel__note">
-              {IMPORT_FORMAT_NOTE} Use <strong>Copy template</strong> when you want a model to generate an import file that opens cleanly here.
+              {IMPORT_FORMAT_NOTE} Use <strong>Template</strong> when you want a model to generate an import file that opens cleanly here.
             </p>
+            <button className="toolbar-button toolbar-button--wide" onClick={async () => {
+              await navigator.clipboard.writeText(JSON.stringify(document, null, 2));
+              setNotice('JSON copied');
+            }} type="button">
+              <Braces size={16} />
+              Copy JSON
+            </button>
           </section>
         </aside>
 
         <main className="canvas-shell">
+          <div className="canvas-shell__tabs">
+            <span className="canvas-tab canvas-tab--active">{document.meta.name}</span>
+            <span className="canvas-tab canvas-tab--placeholder">Layers placeholder</span>
+            <span className="canvas-tab canvas-tab--placeholder">Comments placeholder</span>
+          </div>
+
           <div className="canvas-shell__chrome">
             <div>
-              <strong>Canvas</strong>
+              <strong>Diagram canvas</strong>
               <p>Map handoffs, capture decisions, and keep the diagram readable as it grows.</p>
             </div>
-            <button className="canvas-shell__delete" onClick={deleteSelection} type="button">
-              <Trash2 size={16} />
-              Delete selected
-            </button>
+            <div className="canvas-shell__actions">
+              <span className="status-pill">Schema v{DOCUMENT_VERSION}</span>
+              <button className="canvas-shell__delete" onClick={deleteSelection} type="button">
+                <Trash2 size={16} />
+                Delete selected
+              </button>
+            </div>
           </div>
+
+          <div className="canvas-titlebar">
+            <input
+              aria-label="Diagram name"
+              className="diagram-title"
+              onChange={(event) => renameDiagram(event.target.value)}
+              value={document.meta.name}
+            />
+          </div>
+
           <div className="canvas-frame" ref={canvasRef}>
             <ReactFlowProvider>
               <Canvas onReady={setReactFlow} themeMode={themeMode} />
@@ -726,5 +879,5 @@ function FlowcraftApp(): JSX.Element {
 }
 
 export default function App(): JSX.Element {
-  return <FlowcraftApp />;
+  return <RerangaApp />;
 }

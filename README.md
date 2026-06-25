@@ -1,6 +1,6 @@
-# FlowCraft
+# Reranga
 
-FlowCraft is a Vercel-ready internal workflow editor for mapping processes, handoffs, and decision trees.
+Reranga is a Vercel-ready internal workflow editor for mapping processes, handoffs, and decision trees.
 
 ## What changed
 
@@ -28,9 +28,9 @@ npm run build
 
 Nodes auto-size to fit their content, and selected nodes can also be resized directly on the canvas by dragging the visible resize handles.
 
-FlowCraft accepts two JSON import formats:
+Reranga accepts two JSON import formats:
 
-1. **Native FlowCraft JSON** from the built-in export button.
+1. **Native Reranga JSON** from the built-in export button.
 2. **Outline JSON** for model-generated imports.
 
 ```json
