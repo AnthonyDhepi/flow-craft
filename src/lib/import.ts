@@ -78,7 +78,7 @@ const DEFAULT_IMPORT_TEMPLATE = {
   ],
 } as const;
 
-export const IMPORT_FORMAT_NOTE = 'Import either exported Reranga JSON or outline JSON with `title`, optional `direction`, and a `steps` array.';
+export const IMPORT_FORMAT_NOTE = 'Import either exported FlowCraft JSON or outline JSON with `title`, optional `direction`, and a `steps` array.';
 
 export function getImportTemplate(): string {
   return JSON.stringify(DEFAULT_IMPORT_TEMPLATE, null, 2);
@@ -106,7 +106,7 @@ export function parseImportedDocument(text: string): DiagramDocument {
     return buildDocumentFromOutline(parsed);
   }
 
-  throw new Error('Unsupported import format. Use exported Reranga JSON or outline JSON with a `steps` array.');
+  throw new Error('Unsupported import format. Use exported FlowCraft JSON or outline JSON with a `steps` array.');
 }
 
 function isNativeDocument(value: unknown): value is Partial<DiagramDocument> {

@@ -114,9 +114,30 @@ export async function listStoredDocuments(): Promise<SavedDiagramRecord[]> {
   return [record];
 }
 
+export async function deleteStoredDocument(id: string): Promise<void> {
+  const remaining = readLegacyLibrary().filter((record) => record.id !== id);
+  writeLegacyLibrary(remaining);
+
+  if (typeof window !== 'undefined') {
+    try {
+      const current = window.localStorage.getItem(STORAGE_KEY);
+      if (current) {
+        const parsed = sanitizeDocument(JSON.parse(current));
+        if (parsed.meta.id === id) {
+          window.localStorage.removeItem(STORAGE_KEY);
+        }
+      }
+    } catch {
+      window.localStorage.removeItem(STORAGE_KEY);
+    }
+  }
+
+  await deleteStoredRecord(id);
+}
+
 export function downloadDocument(document: DiagramDocument): void {
   download(
-    `${document.meta.name.toLowerCase().replace(/\s+/g, '-') || 'reranga'}.json`,
+    `${document.meta.name.toLowerCase().replace(/\s+/g, '-') || 'flowcraft'}.json`,
     new Blob([serializeDocument(document)], { type: 'application/json' }),
   );
 }
@@ -135,7 +156,7 @@ export async function exportCanvasToPng(element: HTMLElement, document: DiagramD
   const response = await fetch(dataUrl);
   const blob = await response.blob();
   download(
-    `${document.meta.name.toLowerCase().replace(/\s+/g, '-') || 'reranga'}.png`,
+    `${document.meta.name.toLowerCase().replace(/\s+/g, '-') || 'flowcraft'}.png`,
     blob,
   );
 }
@@ -187,6 +208,20 @@ async function upsertStoredRecord(record: SavedDiagramRecord): Promise<void> {
   try {
     const transaction = database.transaction(DOCUMENT_STORE, 'readwrite');
     transaction.objectStore(DOCUMENT_STORE).put(record);
+    await waitForTransaction(transaction);
+  } finally {
+    database.close();
+  }
+}
+
+async function deleteStoredRecord(id: string): Promise<void> {
+  if (!supportsIndexedDb()) return;
+
+  const database = await openDatabase();
+
+  try {
+    const transaction = database.transaction(DOCUMENT_STORE, 'readwrite');
+    transaction.objectStore(DOCUMENT_STORE).delete(id);
     await waitForTransaction(transaction);
   } finally {
     database.close();

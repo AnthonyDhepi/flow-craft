@@ -1,6 +1,6 @@
 {
-  "name": "flowcraft-live",
-  "version": "3.0.0",
+  "name": "flowcraft-studio",
+  "version": "4.0.0",
   "private": true,
   "type": "module",
   "scripts": {

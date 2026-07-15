@@ -1,37 +1,74 @@
-# Reranga
+# FlowCraft
 
-Reranga is a Vercel-ready internal workflow editor for mapping processes, handoffs, and decision trees.
+**A local-first flowchart studio for mapping processes, handoffs, and decision trees.**
 
-## What changed
+FlowCraft is a browser-based diagram editor. Sketch a workflow on an infinite canvas,
+give every step an owner and a status, branch on decisions, and export the result to
+JSON or PNG. Everything is stored locally in your browser — no account, no server.
 
-- Rebuilt the app as **React + TypeScript + Vite**
-- Replaced the bespoke SVG editor with **React Flow**
-- Added **autosave, import/export, auto-layout, drag resizing, metrics, and a richer inspector**
-- Added a **production build pipeline**, updated tests, and Vercel deployment config
+> This is version 4 — an end-to-end redesign of the previous "Reranga" build. The
+> tested logic layer (document schema, auto-layout, import parsing, persistence) was
+> kept and hardened; the entire experience on top of it was rebuilt. See
+> [`docs/redesign.md`](docs/redesign.md) for the design rationale.
 
-## Local development
+## Highlights
+
+- **Dashboard** — a real project home: searchable library of saved diagrams with
+  duplicate, export, and delete, plus live stats. First-run **templates** spin up
+  fully-editable starter flows (customer onboarding, incident response, content
+  approval, bug triage).
+- **Studio editor** — a focused three-pane workspace: a shape palette, an infinite
+  canvas, and a contextual inspector that switches between the selected **element**
+  and the **diagram** as a whole.
+- **Command palette (⌘K / Ctrl+K)** — every action is one fuzzy search away: add
+  shapes, auto-layout, undo/redo, export, import, switch theme.
+- **Expressive nodes** — start/end, process, decision, and data shapes with owner,
+  status, notes, and a per-node accent color. Nodes auto-size to their content and can
+  be resized by hand.
+- **Smart connections** — drag between nodes to connect them; label edges, attach a
+  condition, mark risk (low/medium/high, color-coded), and optionally animate.
+- **Auto-layout** — one click re-flows the graph vertically or horizontally (Dagre).
+- **Local-first persistence** — autosave to IndexedDB with a `localStorage` fallback,
+  so your work survives refreshes and offline use.
+- **Portable exports** — download a diagram as clean JSON or a high-resolution PNG,
+  and re-import either the native JSON or a simple **outline JSON** format.
+- **Light & dark themes** that follow your system preference by default.
+
+## Getting started
 
 ```bash
 npm install
 npm run dev
 ```
 
+Open the printed local URL. The app opens on the dashboard — pick a template or
+**New diagram** to start editing.
+
 ## Quality checks
 
 ```bash
-npm run lint
-npm run test
-npm run build
+npm run lint     # eslint
+npm run test     # vitest unit tests
+npm run test:e2e # playwright end-to-end tests
+npm run build    # type-check + production build
+npm run check    # lint + unit tests + build
 ```
+
+## Keyboard shortcuts
+
+| Action | Shortcut |
+| --- | --- |
+| Command palette | `⌘K` / `Ctrl+K` |
+| Undo / Redo | `⌘Z` / `⌘⇧Z` (or `⌘Y`) |
+| Duplicate selected step | `⌘D` |
+| Delete selection | `Delete` / `Backspace` |
 
 ## Import format
 
-Nodes auto-size to fit their content, and selected nodes can also be resized directly on the canvas by dragging the visible resize handles.
+FlowCraft imports two shapes of JSON:
 
-Reranga accepts two JSON import formats:
-
-1. **Native Reranga JSON** from the built-in export button.
-2. **Outline JSON** for model-generated imports.
+1. **Native FlowCraft JSON** — exactly what the export button produces.
+2. **Outline JSON** — a compact, model-friendly format that auto-lays-out on import.
 
 ```json
 {
@@ -50,8 +87,6 @@ Reranga accepts two JSON import formats:
       "id": "kickoff-review",
       "kind": "process",
       "label": "Kickoff review",
-      "owner": "CSM",
-      "description": "Validate scope, account tier, and delivery owner.",
       "next": ["ready-to-provision"]
     },
     {
@@ -60,22 +95,46 @@ Reranga accepts two JSON import formats:
       "label": "Ready to provision?",
       "next": [
         { "to": "provision-workspace", "label": "Yes" },
-        { "to": "request-missing-inputs", "label": "Missing data", "condition": "Requirements incomplete", "risk": "medium" }
+        { "to": "request-inputs", "label": "Missing data", "condition": "Requirements incomplete", "risk": "medium" }
       ]
     }
   ]
 }
 ```
 
-Use `kind` values of `start`, `process`, `decision`, or `data`. Each `next` entry can be either a target step id string or an object with `to`, `label`, optional `condition`, and optional `risk`.
+`kind` is one of `start`, `process`, `decision`, or `data`. Each `next` entry is either
+a target step id (string) or an object with `to`, `label`, and optional `condition` and
+`risk`. Use the editor's **Copy import template** command to grab a working example.
 
-## Deploy to Vercel
+## Architecture
 
-1. Push this folder to a Git repository.
-2. Import the repository into Vercel.
-3. Keep the default settings or use:
-   - **Framework preset:** Vite
-   - **Build command:** `npm run build`
-   - **Output directory:** `dist`
+```
+src/
+  app.tsx                 # top-level router: dashboard <-> editor, theme, persistence wiring
+  hooks.ts                # theme, autosave, editor shortcuts, toasts
+  types.ts                # document / node / edge model
+  lib/
+    diagram.ts            # document schema, node/edge factories, sanitizing, metrics
+    layout.ts             # Dagre auto-layout
+    import.ts             # native + outline JSON import parser
+    persistence.ts        # IndexedDB + localStorage, export/delete, PNG export
+    templates.ts          # prebuilt starter flows
+  store/
+    editor-store.ts       # Zustand store: nodes, edges, selection, history/undo
+  components/
+    dashboard.tsx         # home: library, templates, stats
+    editor.tsx            # editor shell: top bar, rails, toolbar, command wiring
+    canvas.tsx            # React Flow canvas
+    flow-node.tsx         # custom node renderer with auto-sizing
+    shape-palette.tsx     # left rail shape picker
+    inspector.tsx         # right rail element/diagram inspector
+    command-palette.tsx   # ⌘K launcher
+```
 
-No server runtime is required.
+**Stack:** React 18 · TypeScript · Vite · [React Flow](https://reactflow.dev) ·
+[Zustand](https://github.com/pmndrs/zustand) · [Dagre](https://github.com/dagrejs/dagre).
+
+## Deploy
+
+The app is a fully static SPA. On Vercel, use the Vite preset (build `npm run build`,
+output `dist`). Any static host works — no server runtime is required.

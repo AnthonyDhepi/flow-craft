@@ -1,25 +1,38 @@
 import { expect, test } from '@playwright/test';
 
-test.describe('Reranga', () => {
+test.describe('FlowCraft', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
   });
 
-  test('starts on the home page and opens a blank editor', async ({ page }) => {
-    await expect(page.getByRole('heading', { name: /Reranga gives your team a draw\.io-style workspace with a calmer flow state/i })).toBeVisible();
-    await page.getByRole('button', { name: /new blank chart/i }).click();
-    await expect(page.getByLabel('Diagram name')).toHaveValue(/untitled reranga/i);
+  test('opens a blank editor from the dashboard', async ({ page }) => {
+    await expect(
+      page.getByRole('heading', { name: /design workflows that explain themselves/i }),
+    ).toBeVisible();
+
+    await page.getByRole('button', { name: /new diagram/i }).click();
+
+    await expect(page.getByLabel('Diagram name')).toHaveValue(/untitled flow/i);
     await expect(page.getByRole('button', { name: /process step/i })).toBeVisible();
     await expect(page.locator('.react-flow')).toBeVisible();
   });
 
-  test('adds a node from the library and updates metrics', async ({ page }) => {
-    await page.getByRole('button', { name: /new blank chart/i }).click();
-    const nodesMetric = page.locator('.metric-card').filter({ hasText: 'Nodes' });
-    await expect(nodesMetric).toContainText('0');
+  test('adds a node and reflects it in diagram metrics', async ({ page }) => {
+    await page.getByRole('button', { name: /new diagram/i }).click();
 
-    await page.getByRole('button', { name: /Data \/ Input/i }).click();
+    const steps = page.locator('.metric').filter({ hasText: 'Steps' });
+    await expect(steps).toContainText('0');
 
-    await expect(nodesMetric).toContainText('1');
+    await page.getByRole('button', { name: /process step/i }).click();
+
+    await page.getByRole('button', { name: 'Diagram', exact: true }).click();
+    await expect(steps).toContainText('1');
+  });
+
+  test('starts a diagram from a template', async ({ page }) => {
+    await page.getByRole('button', { name: /incident response/i }).click();
+
+    await expect(page.getByLabel('Diagram name')).toHaveValue(/incident response/i);
+    await expect(page.locator('.react-flow')).toBeVisible();
   });
 });

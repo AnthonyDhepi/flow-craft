@@ -1,6 +1,6 @@
 # Unit tests
 
-Reranga uses **Vitest** for unit testing.
+FlowCraft uses **Vitest** for unit testing.
 
 ## Run the unit tests
 
@@ -18,13 +18,18 @@ That command runs linting, the unit test suite, and the production build.
 
 ## Current unit test coverage
 
-The current unit tests focus on the core diagram logic in `tests/unit/`:
+The unit tests focus on the core logic layer in `tests/unit/`:
 
-- `diagram.test.ts` checks document sanitizing, legacy schema migration, and diagram health metrics.
-- `layout.test.ts` checks auto-layout behavior and confirms nodes are repositioned correctly.
-- `import.test.ts` checks the outline import parser, including successful import generation and invalid target validation.
+- `diagram.test.ts` — document sanitizing, legacy schema migration, diagram health
+  metrics, and content-aware node auto-sizing.
+- `layout.test.ts` — Dagre auto-layout repositions nodes correctly.
+- `import.test.ts` — the outline import parser, including successful generation and
+  invalid-target validation.
+- `editor-store.test.ts` — the Zustand editor store's manual node-resize behavior
+  (persisting dimensions, honoring the content minimum as a floor).
 
 ## Notes
 
-- The unit suite is aimed at pure logic and data transformation behavior rather than UI interaction.
-- Browser interaction coverage lives separately in the Playwright end-to-end tests under `tests/e2e/`.
+- The unit suite targets pure logic and data transformation rather than UI interaction.
+- Browser interaction coverage lives in the Playwright end-to-end tests under
+  `tests/e2e/` (run with `npm run test:e2e`).

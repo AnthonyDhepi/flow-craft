@@ -27,6 +27,7 @@ export type FlowEdge = Edge<FlowEdgeData>;
 export interface DiagramMeta {
   id: string;
   name: string;
+  description: string;
   version: number;
   updatedAt: string;
 }
