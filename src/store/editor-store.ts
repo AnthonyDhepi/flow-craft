@@ -32,6 +32,7 @@ type EditorState = {
   updateSelectedEdge: (changes: Partial<FlowEdgeData> & { animated?: boolean }) => void;
   connect: (connection: Connection) => void;
   renameDiagram: (name: string) => void;
+  updateDiagramMeta: (changes: { name?: string; description?: string }) => void;
   importDocument: (document: DiagramDocument) => void;
   resetDocument: () => void;
   autoLayout: (direction: LayoutDirection) => void;
@@ -289,7 +290,17 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       ...state.document,
       meta: {
         ...state.document.meta,
-        name: name.trim() || 'Untitled reranga',
+        name: name.trim() || 'Untitled flow',
+      },
+    },
+  })),
+  updateDiagramMeta: (changes) => set((state) => ({
+    document: {
+      ...state.document,
+      meta: {
+        ...state.document.meta,
+        ...(changes.name !== undefined ? { name: changes.name.trim() || 'Untitled flow' } : {}),
+        ...(changes.description !== undefined ? { description: changes.description } : {}),
       },
     },
   })),

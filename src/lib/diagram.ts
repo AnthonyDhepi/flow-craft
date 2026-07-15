@@ -320,12 +320,13 @@ export function createEdge(connection: Pick<Edge, 'source' | 'target' | 'sourceH
   };
 }
 
-export function createBlankDocument(name = 'Untitled reranga'): DiagramDocument {
+export function createBlankDocument(name = 'Untitled flow'): DiagramDocument {
   return {
     version: DOCUMENT_VERSION,
     meta: {
       id: createId('chart'),
       name,
+      description: '',
       version: DOCUMENT_VERSION,
       updatedAt: new Date().toISOString(),
     },
@@ -341,6 +342,7 @@ export function createSampleDocument(): DiagramDocument {
     meta: {
       id: createId('chart'),
       name: 'Customer onboarding',
+      description: 'How a new customer moves from captured lead to a provisioned workspace.',
       version: DOCUMENT_VERSION,
       updatedAt: new Date().toISOString(),
     },
@@ -444,7 +446,8 @@ export function sanitizeDocument(raw: unknown): DiagramDocument {
     version: DOCUMENT_VERSION,
     meta: {
       id: asString(meta.id, createId('chart')),
-      name: asString(meta.name, 'Untitled reranga'),
+      name: asString(meta.name, 'Untitled flow'),
+      description: asString(meta.description),
       version: DOCUMENT_VERSION,
       updatedAt: asString(meta.updatedAt, new Date().toISOString()),
     },
